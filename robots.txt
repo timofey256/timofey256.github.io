@@ -1,4 +1,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://timofey256.github.io/al-folio/sitemap.xml
+Sitemap: https://timofey256.github.io/sitemap.xml
