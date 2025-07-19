@@ -8,9 +8,9 @@ categories: programming
 
 toc:
   - name: Threads
-  - name: Tasks, Await, and Concurrency 
+  - name: Tasks, Await, and Concurrency
   - name: Data Parallelism
-  - name: Atomicity, Visibility, and Locks 
+  - name: Atomicity, Visibility, and Locks
   - name: Basic Synchronization Primitives
   - name: Producer-Consumer Pattern
   - name: Streaming Data using IAsyncEnumerable
@@ -32,6 +32,7 @@ I've recently taken some time to refresh my understanding of multithreading in C
 It covers core concepts like threads, tasks, synchronization primitives, data parallelism, async streams, and more. I’ve included practical examples and benchmarks where they make sense, but the goal isn't to teach everything from scratch—just to gather the important patterns, behaviors, and gotchas in one place.
 
 ---
+
 ## Threads
 
 ```csharp
@@ -47,7 +48,7 @@ t1.Priority = ThreadPriority.Highest;
 int id = Thread.CurrentThread.ManagedThreadId;
 ```
 
-*Default stack size of a .NET thread is 1 MiB*. You can change it by passing `stackSize` in the ctor:
+_Default stack size of a .NET thread is 1 MiB_. You can change it by passing `stackSize` in the ctor:
 
 ```csharp
 var t = new Thread(SomeMethod, stackSize: 512 * 1024);
@@ -70,10 +71,11 @@ Tasks represent units of work, while Threads are C# abstractions over OS Threads
 #### ConfigureAwait
 
 How await works by default
+
 - The compiler inserts an awaiter for every await task;.
 - Just before suspension it captures the current
-    - SynchronizationContext (if one exists, e.g., WinForms/WPF UI thread, classic ASP.NET request thread) or
-    - the current TaskScheduler (usually the ThreadPool).
+  - SynchronizationContext (if one exists, e.g., WinForms/WPF UI thread, classic ASP.NET request thread) or
+  - the current TaskScheduler (usually the ThreadPool).
 - When task completes, the continuation is posted back to that captured context so your method keeps executing on the original thread.
 
 `ConfigureAwait(bool)` lets you to set if you want this capture to happen or not. So we can roughly make the following distinction:
@@ -84,13 +86,15 @@ Libraries / ASP.NET Core  : ConfigureAwait(false)
 ```
 
 #### Task continuations
+
 A continuation is code that runs after a `Task` completes, without blocking the current thread. You define it using the `ContinueWith` method:
 
 ```csharp
 Task first = SomeTask();
 first.ContinueWith(t => Console.WriteLine("This runs after SomeTask completes."));
 ```
-This creates a dependency chain between tasks. 
+
+This creates a dependency chain between tasks.
 
 #### Be careful with chained task continuations
 
@@ -122,6 +126,7 @@ static void Main(string[] args)
 
 {% details Open see the answer %}
 Program output:
+
 ```text
 First thing done.
 Third thing done.
@@ -131,6 +136,7 @@ Second thing done.
 Order is wrong because of the incorrect usage of continuations. In `DoSecondThing()` we return a `Task<Task>`, because `ContinueWith` always returns `Task<T>` where `T` is the return type of the delegate which is Task in this case. The next `ContinueWith` will just unwrap the first `Task`, getting `Task`, so will not await anything.
 
 The correct usage would be:
+
 ```csharp
 DoFirstThing().ContinueWith(_ => DoSecondThing()).Unwrap().ContinueWith(_ => DoThirdThing());
 ```
@@ -158,6 +164,7 @@ await DoWorkAsync().WaitAsync(TimeSpan.FromSeconds(2));
 Data parallelism refers to scenarios in which the same operation is performed concurrently (that is, in parallel) on elements in a source collection or array. In data parallel operations, the source collection is partitioned so that multiple threads can operate on different segments concurrently.
 
 Let's try to implement some data parallelism using raw tasks - we will have an array `bitmaps` and we want to apply `ApplyFilter` on each of its elements.
+
 ```csharp
 int degree = Environment.ProcessorCount;
 int chunk  = (int)Math.Ceiling(bitmaps.Length / (double)degree);
@@ -177,6 +184,7 @@ await Task.WhenAll(tasks);
 As you see, we had to deal with a lot of low-level things - specifying chunk sizes, manually calculating indices, etc. It's easy to make bugs when writing code like this.
 
 Fortunately, .NET Task Parallel Library (TPL) has `System.Threading.Tasks.Parallel` class. Using it we can rewrite the above code piece much more concisely:
+
 ```csharp
 Parallel.For(0, bitmaps.Length, i =>
 {
@@ -187,6 +195,7 @@ Parallel.For(0, bitmaps.Length, i =>
 #### `Parallel` also supports Async
 
 Fetching a resource w/o `Parallel`:
+
 ```csharp
 using var sem = new SemaphoreSlim(2);
 var tasks = urls.Select(async url =>
@@ -199,6 +208,7 @@ await Task.WhenAll(tasks);
 ```
 
 With `Parallel`:
+
 ```csharp
 await Parallel.ForEachAsync(urls,
     new ParallelOptions { MaxDegreeOfParallelism = 2 },
@@ -233,6 +243,7 @@ Interlocked.CompareExchange(ref counter, 10, 5); // set to 10 only when counter 
 Why should you use `Interlocked` instead of `lock` whenever you can? Let's compare their performance.
 
 {% details Open to see the benchmark code %}
+
 ```csharp
 class CompareInterlockedAndLockProgram
 {
@@ -300,6 +311,7 @@ class Program {
     }
 }
 ```
+
 {% enddetails %}
 
 Typical run on 4 threads × 1 M increments each:
@@ -314,7 +326,6 @@ Lock:       101 ms | Final = 4000000
 ## Basic Synchronization Primitives
 
 ### SemaphoreSlim
-
 
 Control how many concurrent callers enter a critical section. `SemaphoreSlim` is also async‑friendly.
 Limit a CPU‑bound method to 2 parallel executions.
@@ -382,7 +393,7 @@ Task.Run(() =>                        // consumer
 
 #### CountdownEvent
 
-**Fork / join**: continue when *n* signals have arrived.
+**Fork / join**: continue when _n_ signals have arrived.
 Fire off N raw threads, wait for all to finish.
 
 ```csharp
@@ -427,22 +438,23 @@ Producer-Consumer decouples data creation from data processing: producers push i
 var queue = new BlockingCollection<int>(boundedCapacity: 5);
 
 var producer = Task.Run(() => {
-    for (int i = 0; i < 10; i++) {
-        queue.Add(i);                         // Blocks if full
-        Console.WriteLine($"Produced: {i}");
-        Thread.Sleep(100);                    
-    }
-    queue.CompleteAdding();                   // Signal no more items
+for (int i = 0; i < 10; i++) {
+queue.Add(i); // Blocks if full
+Console.WriteLine($"Produced: {i}");
+Thread.Sleep(100);  
+ }
+queue.CompleteAdding(); // Signal no more items
 });
 
 // Consumer
 var consumer = Task.Run(() => {
-    foreach (var item in queue.GetConsumingEnumerable()) {
-        Console.WriteLine($"\tConsumed: {item}");
-        Thread.Sleep(150);
-    }
+foreach (var item in queue.GetConsumingEnumerable()) {
+Console.WriteLine($"\tConsumed: {item}");
+Thread.Sleep(150);
+}
 });
-```
+
+````
 
 #### Channel\<T> (async/await)
 
@@ -470,7 +482,7 @@ var consumer = Task.Run(async () =>
 });
 
 await Task.WhenAll(producer, consumer);
-```
+````
 
 Choose bounded channels for `Wait`, `DropOldest`, etc.
 Always call `CompleteAdding()` / `Writer.Complete()`.
@@ -495,15 +507,14 @@ await foreach (var line in ReadLargeFileAsync("log.txt"))
 
 ## Async-Compatible Initialization
 
-*Interface pattern*
+_Interface pattern_
 
 ```csharp
 interface IAsyncInitializable { Task InitializeAsync(); }
 ```
 
-*Factory pattern*
+_Factory pattern_
 
 ```csharp
 var svc = await MyService.CreateAsync();
 ```
-
