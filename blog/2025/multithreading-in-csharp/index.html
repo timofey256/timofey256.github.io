@@ -220,21 +220,22 @@ Lock:       101 ms | Final = 4000000
 </code></pre></div></div> <hr> <h2 id="producer-consumer-pattern">Producer-Consumer Pattern</h2> <p>Producer-Consumer decouples data creation from data processing: producers push items into a shared buffer while consumers pull them out. In .NET you can choose a blocking queue (<code class="language-plaintext highlighter-rouge">BlockingCollection&lt;T&gt;</code>) or the modern async‑friendly <code class="language-plaintext highlighter-rouge">Channel&lt;T&gt;</code> (you should use the latter most of the time).</p> <h4 id="blocking-collection-threadblocking">Blocking Collection (thread‑blocking)</h4> <aside><p> We use <code>Thread.Sleep</code> here for demonstration. In real code, consider using <code>await Task.Delay</code> for non-blocking waiting. </p></aside> <div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">var</span> <span class="n">queue</span> <span class="p">=</span> <span class="k">new</span> <span class="n">BlockingCollection</span><span class="p">&lt;</span><span class="kt">int</span><span class="p">&gt;(</span><span class="n">boundedCapacity</span><span class="p">:</span> <span class="m">5</span><span class="p">);</span>
 
 <span class="kt">var</span> <span class="n">producer</span> <span class="p">=</span> <span class="n">Task</span><span class="p">.</span><span class="nf">Run</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
-    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;</span> <span class="m">10</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span> <span class="p">{</span>
-        <span class="n">queue</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>                         <span class="c1">// Blocks if full</span>
-        <span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="s">$"Produced: </span><span class="p">{</span><span class="n">i</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
-        <span class="n">Thread</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="m">100</span><span class="p">);</span>                    
-    <span class="p">}</span>
-    <span class="n">queue</span><span class="p">.</span><span class="nf">CompleteAdding</span><span class="p">();</span>                   <span class="c1">// Signal no more items</span>
+<span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span> <span class="n">i</span> <span class="p">&lt;</span> <span class="m">10</span><span class="p">;</span> <span class="n">i</span><span class="p">++)</span> <span class="p">{</span>
+<span class="n">queue</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">i</span><span class="p">);</span> <span class="c1">// Blocks if full</span>
+<span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="s">$"Produced: </span><span class="p">{</span><span class="n">i</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
+<span class="n">Thread</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="m">100</span><span class="p">);</span>  
+ <span class="p">}</span>
+<span class="n">queue</span><span class="p">.</span><span class="nf">CompleteAdding</span><span class="p">();</span> <span class="c1">// Signal no more items</span>
 <span class="p">});</span>
 
 <span class="c1">// Consumer</span>
 <span class="kt">var</span> <span class="n">consumer</span> <span class="p">=</span> <span class="n">Task</span><span class="p">.</span><span class="nf">Run</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
-    <span class="k">foreach</span> <span class="p">(</span><span class="kt">var</span> <span class="n">item</span> <span class="k">in</span> <span class="n">queue</span><span class="p">.</span><span class="nf">GetConsumingEnumerable</span><span class="p">())</span> <span class="p">{</span>
-        <span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="s">$"\tConsumed: </span><span class="p">{</span><span class="n">item</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
-        <span class="n">Thread</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="m">150</span><span class="p">);</span>
-    <span class="p">}</span>
+<span class="k">foreach</span> <span class="p">(</span><span class="kt">var</span> <span class="n">item</span> <span class="k">in</span> <span class="n">queue</span><span class="p">.</span><span class="nf">GetConsumingEnumerable</span><span class="p">())</span> <span class="p">{</span>
+<span class="n">Console</span><span class="p">.</span><span class="nf">WriteLine</span><span class="p">(</span><span class="s">$"\tConsumed: </span><span class="p">{</span><span class="n">item</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
+<span class="n">Thread</span><span class="p">.</span><span class="nf">Sleep</span><span class="p">(</span><span class="m">150</span><span class="p">);</span>
+<span class="p">}</span>
 <span class="p">});</span>
+
 </code></pre></div></div> <h4 id="channelt-asyncawait">Channel&lt;T&gt; (async/await)</h4> <div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">var</span> <span class="n">channel</span> <span class="p">=</span> <span class="n">Channel</span><span class="p">.</span><span class="n">CreateUnbounded</span><span class="p">&lt;</span><span class="kt">int</span><span class="p">&gt;();</span>
 
 <span class="kt">var</span> <span class="n">producer</span> <span class="p">=</span> <span class="n">Task</span><span class="p">.</span><span class="nf">Run</span><span class="p">(</span><span class="k">async</span> <span class="p">()</span> <span class="p">=&gt;</span>
