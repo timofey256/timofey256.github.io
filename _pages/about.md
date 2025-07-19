@@ -19,4 +19,4 @@ latest_posts:
   limit: 3 # leave blank to include all the blog posts
 ---
 
-I'm Tymofii, a Computer Science student at Charles University and a software engineer at Barclays, where I work on risk analytics systems in F# and C#. My interests span functional programming, machine learning, and building tools that make complex systems easier to reason about. When not busy with tech, I enjoy learning about history, economy, and literature.
+I'm Tymofii (also Tym, Timofey, Tim), a Computer Science student at Charles University and a software engineer at Barclays, where I work on risk analytics systems in F# and C#. My interests span functional programming, machine learning, and building tools that make complex systems easier to reason about. When not busy with tech, I enjoy learning about history, economy, and literature.
