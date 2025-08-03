@@ -1,6 +1,6 @@
 ---
 layout: distill
-title: an overview of C# multithreading
+title: a cheatsheet of C# multithreading
 date: 2025-07-15
 description: notes i've taken while refreshing my knowledge
 tags: csharp
