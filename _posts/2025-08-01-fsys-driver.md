@@ -173,9 +173,7 @@ Here’s how everything connects:
     How different data structures are linked together.
 </div>
 
-# Implementation.
-
-### Define file system and its superblock
+## Implementation: define file system and its superblock
 
 Now we can start implementing our filesystem driver. We'll begin from scratch by defining the file system type:
 
@@ -444,8 +442,11 @@ static int rf_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 ```
 
-# Further reading
+## Further reading
 
-- https://lwn.net/Articles/57369/
-- https://aeb.win.tue.nl/linux/lk/lk-8.html
-- https://nano-chicken.blogspot.com/2020/05/linux-kernel181-my-first-filesystem.html
+- [Linux kernel labs: Filesystem Management](https://linux-kernel-labs.github.io/refs/heads/master/lectures/fs.html) - excellent notes describing Linux Filesystem Management.
+- [Linux kernel labs: Filesystem drivers (Part 1)](https://linux-kernel-labs.github.io/refs/heads/master/labs/filesystems_part1.html) - check out their labs on drivers too!
+- [Creating Linux virtual filesystems](https://lwn.net/Articles/57369/) - older but very simple guide on basic filesys driver.
+- [Longer guide on writing Linux Kernel modules](https://sysprog21.github.io/lkmpg/).
+- [The Linux Kernel](https://aeb.win.tue.nl/linux/lk/lk-8.html) by Andries Brouwer.
+- [Some chinese blogpost where I took diagrams from](https://nano-chicken.blogspot.com/2020/05/linux-kernel181-my-first-filesystem.html).
