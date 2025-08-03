@@ -16,13 +16,6 @@ ninja.data = [{
           handler: () => {
             window.location.href = "/blog/";
           },
-        },{id: "nav-cv",
-          title: "cv",
-          description: "You can download the PDF to see my CV. Last updated April 2025.",
-          section: "Navigation",
-          handler: () => {
-            window.location.href = "/cv/";
-          },
         },{id: "books-the-godfather",
           title: 'The Godfather',
           description: "",
