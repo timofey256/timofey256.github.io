@@ -134,17 +134,17 @@ Here’s a how dentry looks like in [Linux kernel source code](https://elixir.bo
 
 ```
 struct dentry {
-        //...
-        struct inode             *d_inode;     /* associated inode */
-        //...
-        struct dentry            *d_parent;    /* dentry object of parent */
-        struct qstr              d_name;       /* dentry name */
-        //...
+    //...
+    struct inode             *d_inode;     /* associated inode */
+    //...
+    struct dentry            *d_parent;    /* dentry object of parent */
+    struct qstr              d_name;       /* dentry name */
+    //...
 
-        struct dentry_operations *d_op;        /* dentry operations table */
-        struct super_block       *d_sb;        /* superblock of file */
-        void                     *d_fsdata;    /* filesystem-specific data */
-        //...
+    struct dentry_operations *d_op;        /* dentry operations table */
+    struct super_block       *d_sb;        /* superblock of file */
+    void                     *d_fsdata;    /* filesystem-specific data */
+    //...
 };
 ```
 
@@ -185,35 +185,35 @@ static const struct super_operations rf_sops = {
 
 static int rf_fill_super(struct super_block *sb, void *data, int silent)
 {
-	sb->s_op = &rf_sops;
-	sb->s_magic = RAMFSC_MAGIC;
-	sb->s_time_gran = 1;
+    sb->s_op = &rf_sops;
+    sb->s_magic = RAMFSC_MAGIC;
+    sb->s_time_gran = 1;
 
-	// initialize root directory
+    // initialize root directory
     struct inode *root;
-	root = rf_make_inode(sb, S_IFDIR | 0755); // custom function
-	if (!root)
-		return -ENOMEM;
+    root = rf_make_inode(sb, S_IFDIR | 0755); // custom function
+    if (!root)
+        return -ENOMEM;
     root->i_op = &rf_dir_iops;
 
-	sb->s_root = d_make_root(root);
-	if (!sb->s_root)
-		return -ENOMEM;
+    sb->s_root = d_make_root(root);
+    if (!sb->s_root)
+        return -ENOMEM;
 
-	return 0;
+    return 0;
 }
 
 static struct dentry *rf_mount(struct file_system_type *t,
                                int flags, const char *dev, void *data)
 {
-	return mount_nodev(t, flags, data, rf_fill_super);
+    return mount_nodev(t, flags, data, rf_fill_super);
 }
 
 static struct file_system_type rf_fs_type = {
-	.owner   = THIS_MODULE,
-	.name    = "myramfs",
-	.mount   = rf_mount,
-	.kill_sb = kill_litter_super,
+    .owner   = THIS_MODULE,
+    .name    = "myramfs",
+    .mount   = rf_mount,
+    .kill_sb = kill_litter_super,
 };
 
 static int __init rf_init(void)   { return register_filesystem(&rf_fs_type); }
@@ -232,8 +232,8 @@ Let’s examine those functions more closely. `rf_mount` is called during the mo
 
 ```c
 static const struct inode_operations rf_dir_iops = {
-	.lookup = simple_lookup,
-	.create = rf_create,
+    .lookup = simple_lookup,
+    .create = rf_create,
     .setattr = rf_setattr,
     .mkdir = rf_mkdir,
 };
@@ -252,21 +252,21 @@ Let’s walk through each of these:
 static int rf_create(struct mnt_idmap *idmap, struct inode *dir,
                      struct dentry *dentry, umode_t mode, bool excl) {
     struct inode *ino = rf_make_inode(dir->i_sb, S_IFREG | mode);
-	struct rbuf  *rb;
+    struct rbuf  *rb;
 
-	if (!ino)
-		return -ENOMEM;
+    if (!ino)
+        return -ENOMEM;
 
-	rb = kzalloc(sizeof(*rb), GFP_KERNEL);
-	if (!rb || rf_reserve(rb, PAGE_SIZE)) {
-		iput(ino);
-		kfree(rb);
-		return -ENOMEM;
-	}
-	ino->i_private = rb;
+    rb = kzalloc(sizeof(*rb), GFP_KERNEL);
+    if (!rb || rf_reserve(rb, PAGE_SIZE)) {
+        iput(ino);
+        kfree(rb);
+        return -ENOMEM;
+    }
+    ino->i_private = rb;
 
-	d_add(dentry, ino);   // bind dentry to inode
-	return 0;
+    d_add(dentry, ino);   // bind dentry to inode
+    return 0;
 }
 ```
 
@@ -278,9 +278,9 @@ When creating a new file, the VFS calls `rf_create`. The steps are:
 ```c
 /* File RAM buffer */
 struct rbuf {
-	char  *data;
-	size_t size;      // bytes used
-	size_t cap;       // bytes allocated
+    char  *data;
+    size_t size;      // bytes used
+    size_t cap;       // bytes allocated
 };
 ```
 
@@ -330,9 +330,9 @@ The answer: `rf_make_inode` is just a thin wrapper around `new_inode`.
 ```c
 static struct inode *rf_make_inode(struct super_block *sb, umode_t mode)
 {
-	struct inode *inode = new_inode(sb);
-	if (!inode)
-		return NULL;
+    struct inode *inode = new_inode(sb);
+    if (!inode)
+        return NULL;
 
     inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 
@@ -343,7 +343,7 @@ static struct inode *rf_make_inode(struct super_block *sb, umode_t mode)
         inode->i_fop = &rf_fops;
         inode->i_mapping->a_ops = &empty_aops;
     }
-	return inode;
+    return inode;
 }
 ```
 
@@ -370,8 +370,8 @@ When a file is opened, we simply attach its associated buffer (stored in the ino
 ```c
 static int rf_open(struct inode *inode, struct file *filp)
 {
-	filp->private_data = inode->i_private;
-	return 0;
+    filp->private_data = inode->i_private;
+    return 0;
 }
 ```
 
@@ -384,7 +384,7 @@ static ssize_t rf_read(struct file *f, char __user *buf,
                        size_t len, loff_t *ppos)
 {
     struct rbuf *rb = f->private_data;
-	return simple_read_from_buffer(buf, len, ppos, rb->data, rb->size);
+    return simple_read_from_buffer(buf, len, ppos, rb->data, rb->size);
 }
 ```
 
@@ -405,24 +405,24 @@ Writing is slightly more involved, but still straightforward. We:
 static ssize_t rf_write(struct file *f, const char __user *buf,
                         size_t len, loff_t *ppos)
 {
-	struct rbuf *rb = f->private_data;
+    struct rbuf *rb = f->private_data;
 
     if (f->f_flags & O_APPEND)
         *ppos = rb->size;
 
     loff_t end = *ppos + len;
 
-	if (end > INT_MAX) // sanity check
-		return -EFBIG;
+    if (end > INT_MAX) // sanity check
+        return -EFBIG;
     if (rf_reserve(rb, end))
         return -ENOMEM;
     if (copy_from_user(rb->data + *ppos, buf, len))
         return -EFAULT;
 
-	*ppos += len;
+    *ppos += len;
     rb->size = max_t(size_t, rb->size, end);
-	i_size_write(file_inode(f), rb->size); // updates inode's size
-	return len;
+    i_size_write(file_inode(f), rb->size); // updates inode's size
+    return len;
 }
 ```
 
