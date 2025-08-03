@@ -24,6 +24,7 @@ Following the Feynman's famous quote, we are going to build own in-memory file s
 You can find the source code in this [repo](https://github.com/timofey256/ram-file-system).
 
 ## How Do Users Interact with Filesystems?
+
 Your first thought can be: “Through applications, the shell, or tools like `ls` and `vim`.” That’s true but let's go one level deeper, and you'll find system calls.
 
 Whenever a userspace program performs an I/O operation: opening a file, reading data, or writing to disk - it issues a system call such as `open`, `read`, or `write`. These syscalls are the entry points into the kernel.
@@ -33,6 +34,7 @@ But how does the kernel handle them? How does it know _where_ in memory to write
 We're not going to cover syscall mechanics in this post (you can find excellent [explanations here](https://linux-kernel-labs.github.io/refs/heads/master/lectures/syscalls.html)), but we’ll explore what happens _after_ a syscall hits the kernel — specifically how the Virtual Filesystem (VFS) bridges this gap.
 
 ## The Virtual Filesystem (VFS)
+
 The Virtual Filesystem is a component of the kernel that handles all system calls related to files and file systems. Think of it as a universal adapter which allows multiple filesystems (ext4, tmpfs, NFS, your custom driver) to coexist and plug into the same syscall interface. VFS takes care of most of the complex and error-prone parts, like caching, buffer management, and pathname resolution but delegates the actual storage and retrieval to your specific filesystem driver.
 
 <div class="row mt-3">
@@ -45,14 +47,18 @@ The Virtual Filesystem is a component of the kernel that handles all system call
 </div>
 
 ## How Does the VFS Interface Look?
+
 Let’s work from first principles. If you were designing a filesystem interface, you’d want to define:
+
 1. Metadata about the filesystem itself: its name, block size, max filename length, etc.
 2. Operations on the filesystem: how to mount it, unmount it, query statistics, etc.
 
 That’s exactly what Linux does using a structure called `file_system_type`.
 
 #### `file_system_type`: Registering a Filesystem
+
 This structure represents a specific type of filesystem (e.g. `ext4`, `tmpfs`, or `myramfs`) and provides the logic for mounting and unmounting it:
+
 ```c
 struct file_system_type {
     const char *name;
@@ -62,11 +68,15 @@ struct file_system_type {
     // ...
 };
 ```
+
 When your driver is loaded, you register this structure with the kernel using `register_filesystem`.
+
 #### Superblock: Mounting a Filesystem
+
 Once a filesystem is registered, how does it get _used_? The answer is: via mounting.
 
 Every mounted instance of a filesystem is represented by a `super_block` structure, which tracks its root directory, all its inodes, and any internal metadata:
+
 ```
 struct super_block {
     struct list_head s_inodes;   // All inodes in this mount
@@ -79,9 +89,11 @@ struct super_block {
     // ...
 };
 ```
+
 The superblock esentially answers: “What does this filesystem look like once mounted?”
 
 #### Inode: Representing Files and Directories
+
 Next, we need a way to represent individual files or directories. In Linux, they’re both handled using a structure called an inode.
 
 An inode holds metadata like size, permissions, timestamps, and pointers to file content. But importantly — it **doesn’t** store the filename.
@@ -92,6 +104,7 @@ Linux kernel implementation of inode:
 https://github.com/torvalds/linux/blob/master/fs/ext4/ext4.h#L787
 
 #### Dentry: Directory Entry
+
 A **dentry** (directory entry) maps a filename to its corresponding inode. You can think of it as the glue between filenames and the actual file content.
 
 <div class="row mt-3">
@@ -110,13 +123,16 @@ $ touch file
 $ ln file link
 $ ls -i
 ```
+
 Example output:
+
 ```
 49020997 file
 49020997 link
 ```
 
 Here’s a how dentry looks like in [Linux kernel source code](https://elixir.bootlin.com/linux/v6.16/source/include/linux/dcache.h#L92):
+
 ```
 struct dentry {
         //...
@@ -134,7 +150,9 @@ struct dentry {
 ```
 
 #### `struct file`: Open File Instances
+
 When a file is opened (via `open()` syscall), the kernel creates a `struct file` instance. It tracks:
+
 - The current offset (`f_pos`)
 - Flags like read/write mode
 - A pointer to the file’s operations (read, write, seek, etc.)
@@ -143,6 +161,7 @@ When a file is opened (via `open()` syscall), the kernel creates a `struct file`
 This is what gets passed to your `read`, `write`, and `ioctl` handlers.
 
 #### How it all interacts together?
+
 Here’s how everything connects:
 
 <div class="row mt-3">
@@ -154,10 +173,12 @@ Here’s how everything connects:
     How different data structures are linked together.
 </div>
 
-# Implementation. 
+# Implementation.
 
 ### Define file system and its superblock
+
 Now we can start implementing our filesystem driver. We'll begin from scratch by defining the file system type:
+
 ```c
 static const struct super_operations rf_sops = {
     .statfs      = simple_statfs,  // default function from lib
@@ -209,6 +230,7 @@ Let’s examine those functions more closely. `rf_mount` is called during the mo
 `rf_fill_super` performs two main tasks: it completes the superblock initialization and attaches the root directory to it.
 
 ## How to operate under `root`?
+
 `root` is a directory, so we need to define how to look up files, create new files, and create subdirectories under it. All of this is specified in `rf_dir_iops` (remember how we assigned it when creating the root inode?). Let's take a closer look:
 
 ```c
@@ -228,6 +250,7 @@ For now, we define just four operations:
 - `mkdir`: used to create directories.
 
 Let’s walk through each of these:
+
 ```c
 static int rf_create(struct mnt_idmap *idmap, struct inode *dir,
                      struct dentry *dentry, umode_t mode, bool excl) {
@@ -251,8 +274,10 @@ static int rf_create(struct mnt_idmap *idmap, struct inode *dir,
 ```
 
 When creating a new file, the VFS calls `rf_create`. The steps are:
+
 1. Allocate an inode — the core structure holding file metadata.
 2. Since the file will store data, allocate a buffer. We use a simple in-memory buffer type, `rbuf`:
+
 ```c
 /* File RAM buffer */
 struct rbuf {
@@ -287,9 +312,11 @@ static int rf_mkdir(struct mnt_idmap *idmap, struct inode *dir,
     return 0;
 }
 ```
+
 This follows the same basic flow as `rf_create`, with one key addition: the two calls to `inode_inc_link_count`.
 
 What’s happening here?
+
 - `inode_inc_link_count(inode)` handles the `"."` link: every directory contains a reference to itself.
 - `inode_inc_link_count(dir)` accounts for the `".."` link: the new directory will reference its parent, and the parent now contains one more subdirectory.
 
@@ -298,9 +325,11 @@ This mirrors how UNIX filesystems track directory link counts — each subdirect
 I’m skipping `rf_setattr` here for simplicity. You can check out the implementation in the source.
 
 ## But how did we allocate inode?
+
 When we were creating new files and directories, you may have noticed that the actual allocation of the inode happened somewhere else. In `rf_create` and `rf_mkdir`, we simply called `rf_make_inode`, then added custom metadata or attached buffers. So how was the inode actually allocated?
 
 The answer: `rf_make_inode` is just a thin wrapper around `new_inode`.
+
 ```c
 static struct inode *rf_make_inode(struct super_block *sb, umode_t mode)
 {
@@ -324,8 +353,11 @@ static struct inode *rf_make_inode(struct super_block *sb, umode_t mode)
 	return inode;
 }
 ```
+
 Based on the mode, we check if this inode represents a directory. If it’s a directory, we assign it default directory operations via `simple_dir_inode_operations` and `simple_dir_operations`. If it’s a regular file, we assign it our own `rf_fops` for file operations and configure the address space operations (`a_ops`) using `empty_aops`. This disables any page-level caching or backing store because we're working purely in memory.
+
 ## Finally, File Manipulations!
+
 Naturally, we want to be able to read from and write to the inodes we've created. Let's define the appropriate file operations.
 
 ```c
@@ -339,7 +371,9 @@ static const struct file_operations rf_fops = {
 ```
 
 #### `rf_open`
+
 When a file is opened, we simply attach its associated buffer (stored in the inode) to the file’s private data:
+
 ```c
 static int rf_open(struct inode *inode, struct file *filp)
 {
@@ -349,7 +383,9 @@ static int rf_open(struct inode *inode, struct file *filp)
 ```
 
 #### `rf_read`
+
 To read from a file, we copy data from our in-memory buffer to user space. The buffer is retrieved from `filp->private_data`, which we set in `rf_open`:
+
 ```c
 static ssize_t rf_read(struct file *f, char __user *buf,
                        size_t len, loff_t *ppos)
@@ -358,15 +394,20 @@ static ssize_t rf_read(struct file *f, char __user *buf,
 	return simple_read_from_buffer(buf, len, ppos, rb->data, rb->size);
 }
 ```
+
 This delegates to a kernel helper that handles offset tracking and boundary checking.
+
 #### `rf_write`
+
 Writing is slightly more involved, but still straightforward. We:
+
 1. Retrieve our buffer from `private_data`.
 2. Check whether the file is opened in append mode.
 3. Calculate the new end offset.
 4. Reserve enough space in the buffer.
 5. Copy data from user space.
 6. Update the offset, buffer size, and inode size.
+
 ```c
 static ssize_t rf_write(struct file *f, const char __user *buf,
                         size_t len, loff_t *ppos)
@@ -393,7 +434,9 @@ static ssize_t rf_write(struct file *f, const char __user *buf,
 ```
 
 #### `fsync`
+
 If you open a file in `vim` and try to save it, the editor will call the `fsync` syscall to flush file contents to disk. If `fsync` is unimplemented, this operation would fail. Since we're building an in-memory filesystem, there's nothing to flush. But we still need to handle the call:
+
 ```c
 static int rf_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
@@ -401,8 +444,8 @@ static int rf_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 }
 ```
 
-
 # Further reading
+
 - https://lwn.net/Articles/57369/
 - https://aeb.win.tue.nl/linux/lk/lk-8.html
 - https://nano-chicken.blogspot.com/2020/05/linux-kernel181-my-first-filesystem.html
