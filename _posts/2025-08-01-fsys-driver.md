@@ -100,8 +100,7 @@ An inode holds metadata like size, permissions, timestamps, and pointers to file
 
 Why not? Because the same inode can have multiple names (hard links), and we don’t want to duplicate the actual file or its metadata. The filename is managed separately, using a `dentry`.
 
-Linux kernel implementation of inode:
-https://github.com/torvalds/linux/blob/master/fs/ext4/ext4.h#L787
+Linux kernel implementation of inode is [here](https://github.com/torvalds/linux/blob/master/fs/ext4/ext4.h#L787).
 
 #### Dentry: Directory Entry
 
@@ -337,17 +336,13 @@ static struct inode *rf_make_inode(struct super_block *sb, umode_t mode)
 
     inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 
-	if (S_ISDIR(mode)) {
-		inode->i_op  = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-	} else {
-	​￼if (S_ISDIR(mode)) {
-		inode->i_op  = &simple_dir_inode_operations;
-		inode->i_fop = &simple_dir_operations;
-	​￼} else {
-		inode->i_fop = &rf_fops;
-		inode->i_mapping->a_ops = &empty_aops;
-	}
+    if (S_ISDIR(mode)) {
+        inode->i_op  = &simple_dir_inode_operations;
+        inode->i_fop = &simple_dir_operations;
+    } else {
+        inode->i_fop = &rf_fops;
+        inode->i_mapping->a_ops = &empty_aops;
+    }
 	return inode;
 }
 ```
@@ -361,9 +356,9 @@ Naturally, we want to be able to read from and write to the inodes we've created
 ```c
 static const struct file_operations rf_fops = {
     .open    = rf_open,
-	.read    = rf_read,
-	.write   = rf_write,
-	.llseek  = generic_file_llseek,
+    .read    = rf_read,
+    .write   = rf_write,
+    .llseek  = generic_file_llseek,
     .fsync   = rf_fsync,
 };
 ```
